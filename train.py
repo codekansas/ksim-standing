@@ -65,10 +65,6 @@ class HumanoidWalkingTaskConfig(ksim.PPOConfig):
         value=0.5,
         help="The scale for the standard deviations of the actor.",
     )
-    use_acc_gyro: bool = xax.field(
-        value=True,
-        help="Whether to use the IMU acceleration and gyroscope observations.",
-    )
 
     # Curriculum parameters.
     num_curriculum_levels: int = xax.field(
@@ -390,22 +386,23 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_physics_randomizers(self, physics_model: ksim.PhysicsModel) -> list[ksim.PhysicsRandomizer]:
         return [
             ksim.StaticFrictionRandomizer(),
+            ksim.FloorFrictionRandomizer.from_geom_name(physics_model, "floor"),
             ksim.ArmatureRandomizer(),
             ksim.AllBodiesMassMultiplicationRandomizer(scale_lower=0.95, scale_upper=1.05),
             ksim.JointDampingRandomizer(),
-            ksim.JointZeroPositionRandomizer(scale_lower=math.radians(-2), scale_upper=math.radians(2)),
+            ksim.JointZeroPositionRandomizer(scale_lower=math.radians(-4), scale_upper=math.radians(4)),
         ]
 
     def get_events(self, physics_model: ksim.PhysicsModel) -> list[ksim.Event]:
         return [
             ksim.PushEvent(
-                x_force=1.0,
-                y_force=1.0,
+                x_force=2.0,
+                y_force=2.0,
                 z_force=0.3,
                 force_range=(0.5, 1.0),
-                x_angular_force=0.0,
-                y_angular_force=0.0,
-                z_angular_force=0.0,
+                x_angular_force=1.0,
+                y_angular_force=1.0,
+                z_angular_force=0.3,
                 interval_range=(0.5, 4.0),
             ),
         ]
@@ -419,8 +416,8 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_observations(self, physics_model: ksim.PhysicsModel) -> list[ksim.Observation]:
         return [
             ksim.TimestepObservation(),
-            ksim.JointPositionObservation(noise=math.radians(2)),
-            ksim.JointVelocityObservation(noise=math.radians(10)),
+            ksim.JointPositionObservation(noise=math.radians(4)),
+            ksim.JointVelocityObservation(noise=math.radians(20)),
             ksim.ActuatorForceObservation(),
             ksim.CenterOfMassInertiaObservation(),
             ksim.CenterOfMassVelocityObservation(),
@@ -434,8 +431,8 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
             ksim.ProjectedGravityObservation.create(
                 physics_model=physics_model,
                 framequat_name="imu_site_quat",
-                lag_range=(0.0, 0.1),
-                noise=math.radians(1),
+                lag_range=(0.0, 0.9),
+                noise=math.radians(3),
             ),
             ksim.SensorObservation.create(
                 physics_model=physics_model,
@@ -455,8 +452,6 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_rewards(self, physics_model: ksim.PhysicsModel) -> list[ksim.Reward]:
         return [
             # Standard rewards.
-            ksim.NaiveForwardReward(clip_max=1.25, in_robot_frame=False, scale=3.0),
-            ksim.NaiveForwardOrientationReward(scale=1.0),
             ksim.StayAliveReward(scale=1.0),
             ksim.UprightReward(scale=0.5),
             # Avoid movement penalties.
@@ -481,14 +476,15 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         ]
 
     def get_curriculum(self, physics_model: ksim.PhysicsModel) -> ksim.Curriculum:
-        return ksim.DistanceFromOriginCurriculum(
-            min_level_steps=5,
+        return ksim.EpisodeLengthCurriculum(
+            increase_threshold=5.0,
+            decrease_threshold=5.0,
         )
 
     def get_model(self, key: PRNGKeyArray) -> Model:
         return Model(
             key,
-            num_actor_inputs=51 if self.config.use_acc_gyro else 45,
+            num_actor_inputs=48,
             num_actor_outputs=len(ZEROS),
             num_critic_inputs=446,
             min_std=0.001,
@@ -511,7 +507,6 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         joint_vel_n = observations["joint_velocity_observation"]
         proj_grav_3 = observations["projected_gravity_observation"]
         imu_acc_3 = observations["sensor_observation_imu_acc"]
-        imu_gyro_3 = observations["sensor_observation_imu_gyro"]
 
         obs = [
             jnp.sin(time_1),
@@ -519,12 +514,8 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
             joint_pos_n,  # NUM_JOINTS
             joint_vel_n,  # NUM_JOINTS
             proj_grav_3,  # 3
+            imu_acc_3,  # 3
         ]
-        if self.config.use_acc_gyro:
-            obs += [
-                imu_acc_3,  # 3
-                imu_gyro_3,  # 3
-            ]
 
         obs_n = jnp.concatenate(obs, axis=-1)
         action, carry = model.forward(obs_n, carry)
