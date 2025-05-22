@@ -66,24 +66,6 @@ class HumanoidWalkingTaskConfig(ksim.PPOConfig):
         help="The scale for the standard deviations of the actor.",
     )
 
-    # Curriculum parameters.
-    num_curriculum_levels: int = xax.field(
-        value=100,
-        help="The number of curriculum levels to use.",
-    )
-    increase_threshold: float = xax.field(
-        value=5.0,
-        help="Increase the curriculum level when the mean trajectory length is above this threshold.",
-    )
-    decrease_threshold: float = xax.field(
-        value=1.0,
-        help="Decrease the curriculum level when the mean trajectory length is below this threshold.",
-    )
-    min_level_steps: int = xax.field(
-        value=1,
-        help="The minimum number of steps to wait before changing the curriculum level.",
-    )
-
     # Optimizer parameters.
     learning_rate: float = xax.field(
         value=3e-4,
@@ -388,9 +370,9 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
             ksim.StaticFrictionRandomizer(),
             ksim.FloorFrictionRandomizer.from_geom_name(physics_model, "floor"),
             ksim.ArmatureRandomizer(),
-            ksim.AllBodiesMassMultiplicationRandomizer(scale_lower=0.95, scale_upper=1.05),
+            ksim.AllBodiesMassMultiplicationRandomizer(scale_lower=0.5, scale_upper=1.5),
             ksim.JointDampingRandomizer(),
-            ksim.JointZeroPositionRandomizer(scale_lower=math.radians(-4), scale_upper=math.radians(4)),
+            ksim.JointZeroPositionRandomizer(scale_lower=math.radians(-2), scale_upper=math.radians(2)),
         ]
 
     def get_events(self, physics_model: ksim.PhysicsModel) -> list[ksim.Event]:
@@ -398,16 +380,18 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
             ksim.PushEvent(
                 x_force=2.0,
                 y_force=2.0,
-                z_force=0.3,
+                z_force=0.0,
                 force_range=(0.5, 1.0),
-                x_angular_force=1.0,
-                y_angular_force=1.0,
-                z_angular_force=0.3,
+                x_angular_force=0.0,
+                y_angular_force=0.0,
+                z_angular_force=1.0,
                 interval_range=(0.5, 4.0),
+                curriculum_range=(0.1, 1.0),
             ),
             ksim.JumpEvent(
-                jump_height_range=(0.2, 0.4),
-                interval_range=(8.0, 12.0),
+                jump_height_range=(0.5, 1.0),
+                interval_range=(2.0, 8.0),
+                curriculum_range=(0.1, 1.0),
             ),
         ]
 
@@ -436,7 +420,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
             ksim.ProjectedGravityObservation.create(
                 physics_model=physics_model,
                 framequat_name="imu_site_quat",
-                lag_range=(0.0, 0.9),
+                lag_range=(0.0, 0.5),
                 noise=math.radians(3),
             ),
             ksim.SensorObservation.create(
@@ -460,8 +444,8 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
             ksim.StayAliveReward(scale=1.0),
             ksim.UprightReward(scale=0.5),
             # Avoid movement penalties.
-            ksim.AngularVelocityPenalty(index=("x", "y"), scale=-0.1),
-            ksim.LinearVelocityPenalty(index=("z"), scale=-0.1),
+            ksim.AngularVelocityPenalty(index=("x", "y"), scale=-1.0),
+            ksim.LinearVelocityPenalty(index=("z"), scale=-1.0),
             # Normalization penalties.
             ksim.AvoidLimitsPenalty.create(physics_model, scale=-0.01),
             ksim.JointAccelerationPenalty(scale=-0.01, scale_by_curriculum=True),
@@ -482,8 +466,8 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
 
     def get_curriculum(self, physics_model: ksim.PhysicsModel) -> ksim.Curriculum:
         return ksim.EpisodeLengthCurriculum(
-            increase_threshold=5.0,
-            decrease_threshold=5.0,
+            increase_threshold=10.0,
+            decrease_threshold=10.0,
         )
 
     def get_model(self, key: PRNGKeyArray) -> Model:
