@@ -62,7 +62,7 @@ class HumanoidWalkingTaskConfig(ksim.PPOConfig):
         help="The number of mixtures for the actor.",
     )
     var_scale: float = xax.field(
-        value=0.5,
+        value=1.0,
         help="The scale for the standard deviations of the actor.",
     )
 
@@ -343,11 +343,11 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         )
 
     def get_mujoco_model(self) -> mujoco.MjModel:
-        mjcf_path = asyncio.run(ksim.get_mujoco_model_path("kbot", name="robot"))
+        mjcf_path = asyncio.run(ksim.get_mujoco_model_path("kbot-headless", name="robot"))
         return mujoco_scenes.mjcf.load_mjmodel(mjcf_path, scene="smooth")
 
     def get_mujoco_model_metadata(self, mj_model: mujoco.MjModel) -> ksim.Metadata:
-        metadata = asyncio.run(ksim.get_mujoco_model_metadata("kbot"))
+        metadata = asyncio.run(ksim.get_mujoco_model_metadata("kbot-headless"))
         if metadata.joint_name_to_metadata is None:
             raise ValueError("Joint metadata is not available")
         if metadata.actuator_type_to_metadata is None:
@@ -368,7 +368,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_physics_randomizers(self, physics_model: ksim.PhysicsModel) -> list[ksim.PhysicsRandomizer]:
         return [
             ksim.StaticFrictionRandomizer(),
-            ksim.FloorFrictionRandomizer.from_geom_name(physics_model, "floor"),
+            ksim.FloorFrictionRandomizer.from_geom_name(physics_model, "floor", scale_lower=0.3, scale_upper=1.6),
             ksim.ArmatureRandomizer(),
             ksim.AllBodiesMassMultiplicationRandomizer(scale_lower=0.5, scale_upper=1.5),
             ksim.JointDampingRandomizer(),
@@ -378,19 +378,25 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_events(self, physics_model: ksim.PhysicsModel) -> list[ksim.Event]:
         return [
             ksim.PushEvent(
-                x_force=2.0,
-                y_force=2.0,
-                z_force=0.0,
-                force_range=(0.0, 1.0),
-                x_angular_force=0.0,
-                y_angular_force=0.0,
-                z_angular_force=1.0,
+                x_linvel=2.0,
+                y_linvel=2.0,
+                z_linvel=0.0,
+                x_angvel=0.5,
+                y_angvel=0.5,
+                z_angvel=1.0,
+                vel_range=(0.0, 1.0),
                 interval_range=(0.5, 8.0),
                 curriculum_range=(1.0, 1.0),
             ),
             ksim.JumpEvent(
                 jump_height_range=(0.01, 0.1),
                 interval_range=(2.0, 8.0),
+                curriculum_range=(1.0, 1.0),
+            ),
+            ksim.JointPerturbationEvent(
+                std=3.0,
+                mask_prct=0.9,
+                interval_range=(0.5, 8.0),
                 curriculum_range=(1.0, 1.0),
             ),
         ]
@@ -461,7 +467,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
 
     def get_terminations(self, physics_model: ksim.PhysicsModel) -> list[ksim.Termination]:
         return [
-            ksim.BadZTermination(unhealthy_z_lower=0.6, unhealthy_z_upper=3.0),
+            ksim.BadZTermination(unhealthy_z_lower=0.4, unhealthy_z_upper=3.0),
             ksim.FarFromOriginTermination(max_dist=10.0),
         ]
 
