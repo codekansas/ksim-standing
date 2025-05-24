@@ -389,7 +389,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
                 curriculum_range=(1.0, 1.0),
             ),
             ksim.JumpEvent(
-                jump_height_range=(0.5, 1.0),
+                jump_height_range=(0.01, 0.1),
                 interval_range=(2.0, 8.0),
                 curriculum_range=(1.0, 1.0),
             ),
@@ -399,7 +399,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         return [
             ksim.RandomJointPositionReset.create(physics_model, {k: v for k, v in ZEROS}, scale=0.1),
             ksim.RandomJointVelocityReset(),
-            ksim.RandomHeightReset(range=(0.0, 0.5)),
+            ksim.RandomHeightReset(range=(0.0, 0.1)),
         ]
 
     def get_observations(self, physics_model: ksim.PhysicsModel) -> list[ksim.Observation]:
