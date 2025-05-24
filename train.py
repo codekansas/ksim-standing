@@ -386,12 +386,12 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
                 y_angular_force=0.0,
                 z_angular_force=1.0,
                 interval_range=(0.5, 8.0),
-                curriculum_range=(0.3, 1.0),
+                curriculum_range=(1.0, 1.0),
             ),
             ksim.JumpEvent(
                 jump_height_range=(0.5, 1.0),
                 interval_range=(2.0, 8.0),
-                curriculum_range=(0.3, 1.0),
+                curriculum_range=(1.0, 1.0),
             ),
         ]
 
@@ -444,11 +444,11 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
             ksim.StayAliveReward(scale=1.0),
             ksim.UprightReward(scale=0.5),
             # Avoid movement penalties.
-            ksim.AngularVelocityPenalty(index=("x", "y", "z"), scale=-0.1),
-            ksim.LinearVelocityPenalty(index=("x", "y", "z"), scale=-0.1),
+            ksim.AngularVelocityPenalty(index=("x", "y", "z"), in_robot_frame=False, scale=-0.1),
+            ksim.LinearVelocityPenalty(index=("x", "y", "z"), in_robot_frame=False, scale=-0.1),
             # Normalization penalties.
             ksim.AvoidLimitsPenalty.create(physics_model, scale=-0.01),
-            ksim.CtrlPenalty.create(physics_model, scale=-1.0, scale_by_curriculum=True),
+            ksim.CtrlPenalty.create(physics_model, scale=-0.01),
             ksim.JointAccelerationPenalty(scale=-0.01, scale_by_curriculum=True),
             ksim.JointJerkPenalty(scale=-0.01, scale_by_curriculum=True),
             ksim.LinkAccelerationPenalty(scale=-0.01, scale_by_curriculum=True),
@@ -467,7 +467,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
 
     def get_curriculum(self, physics_model: ksim.PhysicsModel) -> ksim.Curriculum:
         return ksim.EpisodeLengthCurriculum(
-            increase_threshold=10.0,
+            increase_threshold=6.0,
             decrease_threshold=3.0,
             min_level_steps=1,
         )
