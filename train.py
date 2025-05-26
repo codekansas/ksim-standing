@@ -378,26 +378,26 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_events(self, physics_model: ksim.PhysicsModel) -> list[ksim.Event]:
         return [
             ksim.PushEvent(
-                x_linvel=2.0,
-                y_linvel=2.0,
+                x_linvel=3.0,
+                y_linvel=3.0,
                 z_linvel=0.0,
                 x_angvel=0.5,
                 y_angvel=0.5,
                 z_angvel=1.0,
                 vel_range=(0.0, 1.0),
                 interval_range=(0.5, 8.0),
-                curriculum_range=(1.0, 1.0),
+                curriculum_range=(0.5, 1.0),
             ),
             ksim.JumpEvent(
                 jump_height_range=(0.01, 0.1),
                 interval_range=(2.0, 8.0),
-                curriculum_range=(1.0, 1.0),
+                curriculum_range=(0.5, 1.0),
             ),
             ksim.JointPerturbationEvent(
-                std=3.0,
+                std=1.0,
                 mask_prct=0.9,
                 interval_range=(0.5, 8.0),
-                curriculum_range=(1.0, 1.0),
+                curriculum_range=(0.5, 1.0),
             ),
         ]
 
@@ -447,8 +447,8 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_rewards(self, physics_model: ksim.PhysicsModel) -> list[ksim.Reward]:
         return [
             # Standard rewards.
-            ksim.StayAliveReward(scale=1.0),
-            ksim.UprightReward(scale=0.5),
+            ksim.StayAliveReward(scale=3.0),
+            ksim.UprightReward(scale=0.1),
             # Avoid movement penalties.
             ksim.AngularVelocityPenalty(index=("x", "y", "z"), in_robot_frame=False, scale=-0.1),
             ksim.LinearVelocityPenalty(index=("x", "y", "z"), in_robot_frame=False, scale=-0.1),
