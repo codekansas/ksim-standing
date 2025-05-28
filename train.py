@@ -378,20 +378,20 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_events(self, physics_model: ksim.PhysicsModel) -> list[ksim.Event]:
         return [
             ksim.PushEvent(
-                x_linvel=3.0,
-                y_linvel=3.0,
+                x_linvel=1.5,
+                y_linvel=1.0,
                 z_linvel=0.0,
-                x_angvel=0.5,
-                y_angvel=0.5,
+                x_angvel=0.2,
+                y_angvel=0.2,
                 z_angvel=1.0,
                 vel_range=(0.0, 1.0),
                 interval_range=(0.5, 8.0),
-                curriculum_range=(0.5, 1.0),
+                curriculum_range=(1.0, 1.0),
             ),
             ksim.JumpEvent(
                 jump_height_range=(0.01, 0.1),
                 interval_range=(2.0, 8.0),
-                curriculum_range=(0.5, 1.0),
+                curriculum_range=(1.0, 1.0),
             ),
             ksim.JointPerturbationEvent(
                 std=1.0,
@@ -646,8 +646,8 @@ if __name__ == "__main__":
     HumanoidWalkingTask.launch(
         HumanoidWalkingTaskConfig(
             # Training parameters.
-            num_envs=2048,
-            batch_size=256,
+            num_envs=4096,
+            batch_size=512,
             num_passes=4,
             epochs_per_log_step=1,
             rollout_length_seconds=8.0,
