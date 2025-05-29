@@ -158,9 +158,11 @@ class VelocityCommand(ksim.FloatVectorCommand):
 @attrs.define(frozen=True, kw_only=True)
 class VelocityReward(ksim.Reward):
     def get_reward(self, trajectory: ksim.Trajectory) -> Array:
-        linvel = trajectory.qvel[..., 0]
-        cmdvel = trajectory.command["velocity_command"]
-        return ksim.norm_to_reward(xax.get_norm(linvel - cmdvel, "l2"), temp=1.0, monotonic_fn="inv")
+        linvel = trajectory.qvel[..., :3]
+        linvel = xax.rotate_vector_by_quat(linvel, trajectory.qpos[..., 3:7], inverse=True)
+        fwdvel = linvel[..., 0]
+        cmdvel = trajectory.command["velocity_command"][..., 0]
+        return ksim.norm_to_reward(xax.get_norm(fwdvel - cmdvel, "l2"), temp=1.0, monotonic_fn="inv")
 
 
 class Actor(eqx.Module):
@@ -397,7 +399,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
                 z_linvel=0.0,
                 x_angvel=0.2,
                 y_angvel=0.2,
-                z_angvel=1.0,
+                z_angvel=0.2,
                 vel_range=(0.0, 1.0),
                 interval_range=(0.5, 8.0),
                 curriculum_range=(1.0, 1.0),
@@ -465,7 +467,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
             # Standard rewards.
             ksim.StayAliveReward(scale=3.0),
             ksim.UprightReward(scale=0.1),
-            VelocityReward(scale=0.1),
+            VelocityReward(scale=1.0),
             # Avoid movement penalties.
             ksim.AngularVelocityPenalty(index=("x", "y", "z"), in_robot_frame=False, scale=-0.1),
             ksim.LinearVelocityPenalty(index=("z",), in_robot_frame=True, scale=-0.1),
