@@ -1,6 +1,6 @@
 <div align="center">
-<h1>K-Sim Gym</h1>
-<p>Train and deploy your own humanoid robot controller in 700 lines of Python</p>
+<h1>K-Sim Gym - Standing</h1>
+<p>Pre-trained standing policy, plus the training code</p>
 <h3>
   <a href="https://youtu.be/c64FnSvj8kQ">Tutorial</a> ·
   <a href="https://kscale.dev/benchmarks">Leaderboard</a> ·
@@ -10,10 +10,9 @@
   <a href="https://github.com/kscalelabs/kbot-joystick">Joystick Example</a>
 </h3>
 
-https://github.com/user-attachments/assets/82e5e998-1d62-43e2-ae52-864af6e72629
+![individualImage](https://github.com/user-attachments/assets/61f1fbd4-a148-424b-852d-a61ec5783639)
 
 </div>
-
 
 ## Getting Started
 
