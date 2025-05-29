@@ -519,6 +519,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         carry: Array,
     ) -> tuple[distrax.Distribution, Array]:
         time_1 = observations["timestep_observation"]
+        cmdvel = commands["velocity_command"]
         joint_pos_n = observations["joint_position_observation"]
         joint_vel_n = observations["joint_velocity_observation"]
         proj_grav_3 = observations["projected_gravity_observation"]
@@ -526,7 +527,11 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
 
         obs = [
             jnp.sin(time_1),
-            jnp.cos(time_1),
+            # Note: We comment out the cosine term so that we can load the
+            # model checkpoint from the previous task without adjusting the
+            # number of input dimensions - this is sort of a hack.
+            # jnp.cos(time_1),
+            cmdvel,  # 1
             joint_pos_n,  # NUM_JOINTS
             joint_vel_n,  # NUM_JOINTS
             proj_grav_3,  # 3
@@ -546,6 +551,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         carry: Array,
     ) -> tuple[Array, Array]:
         time_1 = observations["timestep_observation"]
+        cmdvel = commands["velocity_command"]
         dh_joint_pos_j = observations["joint_position_observation"]
         dh_joint_vel_j = observations["joint_velocity_observation"]
         com_inertia_n = observations["center_of_mass_inertia_observation"]
@@ -560,7 +566,8 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         obs_n = jnp.concatenate(
             [
                 jnp.sin(time_1),
-                jnp.cos(time_1),
+                # jnp.cos(time_1),
+                cmdvel,  # 1
                 dh_joint_pos_j,  # NUM_JOINTS
                 dh_joint_vel_j / 10.0,  # NUM_JOINTS
                 com_inertia_n,  # 160
@@ -676,7 +683,7 @@ if __name__ == "__main__":
             ctrl_dt=0.02,
             iterations=8,
             ls_iterations=8,
-            action_latency_range=(0.003, 0.01),  # Simulate 3-10ms of latency.
+            action_latency_range=(0.0, 0.01),  # Simulate 0-10ms of latency.
             drop_action_prob=0.05,  # Drop 5% of commands.
             # Visualization parameters.
             render_track_body_id=0,
